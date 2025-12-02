@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pixel Bat — Improved</title>
+<title>Pixel Bat — FIXED</title>
 <style>
   html,body {
     height:100%;
@@ -15,51 +15,97 @@
   }
 
   .bat {
-    width: 32px;             /* one frame width */
-    height: 32px;            /* one frame height */
-    /* Keep pixel-art crisp and scale to taste */
-    transform: scale(6);
-    transform-origin: center;
+    width: 32px;
+    height: 32px;
     background-repeat: no-repeat;
     background-position: 0 0;
-    background-size: 192px 32px; /* 6 frames × 32 */
+    transform-origin: center;
     image-rendering: pixelated;
-    /* sprite-step animation + simultaneous bob (translate/rotate) */
+    transform: scale(6);
     animation: flap 0.45s steps(6) infinite,
                bob 0.9s ease-in-out infinite alternate;
     user-select:none;
+    -webkit-user-select: none;
   }
 
-  /* move across the sheet (6 frames) */
-  @keyframes flap { to { background-position: -192px 0; } }
+  @keyframes flap { to { background-position: -256px 0; } }
 
-  /* subtle body bob & tilt so bat reads as flight, include scale to preserve pixel scale */
   @keyframes bob {
-    0%   { transform: scale(6) translateY(0) rotate(-2deg); }
-    50%  { transform: scale(6) translateY(-3px) rotate(2deg); }
-    100% { transform: scale(6) translateY(0) rotate(-2deg); }
+    0%   { transform: scale(6) translateY(0) rotate(-3deg); }
+    50%  { transform: scale(6) translateY(-5px) rotate(3deg); }
+    100% { transform: scale(6) translateY(0) rotate(-3deg); }
   }
 
-  /* helper for debugging if needed */
-  .debug { position: fixed; left:10px; bottom:10px; font-size:12px; color:#555; }
+  .controls {
+    position:fixed;
+    right:12px;
+    top:12px;
+    font-family:Arial,Helvetica,sans-serif;
+    font-size:13px;
+    color:#333;
+    background:rgba(255,255,255,0.9);
+    padding:8px 10px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.07);
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  label{display:flex;gap:6px;align-items:center;}
 </style>
 </head>
 <body>
 
-<div class="bat" id="bat"></div>
-<div class="debug">Improved sprite — tweak color/scale in script</div>
+<div class="bat" id="bat">
+  <label><input type = "checkbox" id = "fast">FAST</label>
+  <label>Scale<input <input id="scale" type="range" min="2" max="10" step="0.5" value="6"></label>
+ </div> 
 
 <script>
-/*
-Improved frames for a wider-winged bat.
-We draw chunky 3x3 "pixels" so the silhouette reads when scaled.
-Each frame is 32x32, and we have 6 frames (192x32 sheet).
-*/
-
-function generateBatSprite(color = '#111') {
-  const frames = 6;
+function generateBatSprite(color = '#000000') {
   const fw = 32, fh = 32;
-  const pixelSize = 3; // draw 3x3 blocks to make shape readable when scaled
+  const block = 3; 
+  const framesData = [
+    // frame 0 — wings down
+    [
+      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[14,12],[15,12],[16,12],[17,12],[15,13],[16,13],
+      [10,12],[9,13],[8,14],[7,15],[11,11],[12,12],
+      [21,12],[22,13],[23,14],[24,15],[20,11],[19,12]
+    ],
+    // frame 1 — mid-up
+    [
+      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[15,12],[16,12],
+      [11,9],[10,10],[9,11],[8,12],[12,10],
+      [20,9],[21,10],[22,11],[23,12],[19,10]
+    ],
+    // frame 2 — up
+    [
+      [15,10],[16,10],[14,11],[15,11],[16,11],
+      [12,7],[11,8],[10,9],[9,10],
+      [19,7],[20,8],[21,9],[22,10],
+      [13,9],[18,9]
+    ],
+    // frame 3 — mid (repeat-ish)
+    [
+      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[15,12],[16,12],
+      [11,9],[10,10],[9,11],[8,12],[12,10],
+      [20,9],[21,10],[22,11],[23,12],[19,10]
+    ],
+    // frame 4 — down slight variant
+    [
+      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[14,12],[15,12],[16,12],[17,12],
+      [10,12],[9,13],[8,14],[7,15],[11,11],[12,12],
+      [21,12],[22,13],[23,14],[24,15],[20,11],[19,12]
+    ],
+    // frame 5 — relaxed
+    [
+      [15,11],[16,11],[14,12],[15,12],[16,12],
+      [12,10],[11,11],[10,12],
+      [20,10],[21,11],[22,12]
+    ],
+  ];
+
+  const frames = framesData.length;
   const canvas = document.createElement('canvas');
   canvas.width = frames * fw;
   canvas.height = fh;
@@ -68,78 +114,64 @@ function generateBatSprite(color = '#111') {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle = color;
 
-  // Each sub-array is a frame. Coordinates are top-left of a "pixel block" (before multiplying pixelSize)
-  // Coordinates chosen to form a head/body and wings that change over frames.
-  const framesData = [
-    // frame 0 — wings down (wide)
-    [
-      // body / head
-      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[14,12],[15,12],[16,12],[17,12],[15,13],[16,13],
-      // left wing blobs (down)
-      [10,12],[9,13],[8,14],[7,15],[11,11],[12,12],
-      // right wing blobs (down) — mirror
-      [21,12],[22,13],[23,14],[24,15],[20,11],[19,12],
-      // eyes (tiny gaps invented by not drawing)
-    ],
-    // frame 1 — wings mid-up
-    [
-      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[15,12],[16,12],
-      // left wing
-      [11,9],[10,10],[9,11],[8,12],[12,10],
-      // right wing
-      [20,9],[21,10],[22,11],[23,12],[19,10],
-    ],
-    // frame 2 — wings up (narrow, high)
-    [
-      [15,10],[16,10],[14,11],[15,11],[16,11],
-      // left wing tip up
-      [12,7],[11,8],[10,9],[9,10],
-      // right wing tip up
-      [19,7],[20,8],[21,9],[22,10],
-      // small shoulder blobs
-      [13,9],[18,9]
-    ],
-    // frame 3 — wings mid (similar to frame1)
-    [
-      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[15,12],[16,12],
-      [11,9],[10,10],[9,11],[8,12],[12,10],
-      [20,9],[21,10],[22,11],[23,12],[19,10],
-    ],
-    // frame 4 — wings down (a slightly different down pose)
-    [
-      [15,10],[16,10],[14,11],[15,11],[16,11],[17,11],[14,12],[15,12],[16,12],[17,12],
-      [10,12],[9,13],[8,14],[7,15],[11,11],[12,12],
-      [21,12],[22,13],[23,14],[24,15],[20,11],[19,12],
-    ],
-    // frame 5 — relaxed mid (tail end)
-    [
-      [15,11],[16,11],[14,12],[15,12],[16,12],
-      [12,10],[11,11],[10,12],
-      [20,10],[21,11],[22,12]
-    ],
-  ];
+  const drawBlock = (frameIndex, x, y) => {
+    const px = frameIndex * fw + Math.round(x * (block / 1));
+    const py = Math.round(y * (block / 1));
+    ctx.fillRect(px, py, block, block);
+  };
 
-  // draw each "pixel block" as pixelSize × pixelSize rectangle
   framesData.forEach((dots, frameIndex) => {
-    dots.forEach(([x,y]) => {
-      // draw block; note we place block as (frameIndex*fw + x, y)
-      ctx.fillRect(frameIndex * fw + x, y, pixelSize, pixelSize);
-    });
+    dots.forEach(([x,y]) => drawBlock(frameIndex, x, y));
   });
 
-  return canvas.toDataURL();
+  return {
+    dataUrl: canvas.toDataURL(),
+    frames,
+    fw,
+    fh
+  };
 }
 
-// Apply generated sprite as background
-document.getElementById('bat').style.backgroundImage = `url(${generateBatSprite('#0c0c0c')})`;
+const el = document.getElementById('bat');
+const sprite = generateBatSprite('#000000');
+el.style.backgroundImage = `url(${sprite.dataUrl})`;
+el.style.backgroundSize = `${sprite.frames * sprite.fw}px ${sprite.fh}px`;
+el.style.animation = `flap 0.45s steps(${sprite.frames}) infinite, bob 0.9s ease-in-out infinite alternate`;
 
-/* 
-Tweak suggestions:
- - To make the bat darker/lighter change the hex color in generateBatSprite('#0c0c0c')
- - To make pixels chunkier use pixelSize larger (change both pixelSize and adjust coordinates if necessary)
- - To change displayed size, adjust CSS transform: scale(6)
- - If you want more frames (smoother wings), add more arrays to framesData and update background-size (frames * fw)
-*/
+const chk = document.getElementById('fast');
+const range = document.getElementById('scale');
+
+if (chk) {
+  chk.addEventListener('change', () => {
+    if (chk.checked) {
+      el.style.animationDuration = '0.28s, 0.7s';
+    } else {
+      el.style.animationDuration = '';
+    }
+  });
+}
+
+if (range) {
+  range.addEventListener('input', () => {
+    const s = range.value;
+    el.style.transform = `scale(${s})`;
+
+    let bobStyle = document.getElementById('bob-dynamic');
+    if (!bobStyle) {
+      bobStyle = document.createElement('style');
+      bobStyle.id = 'bob-dynamic';
+      document.head.appendChild(bobStyle);
+    }
+    bobStyle.innerHTML = `
+      @keyframes bob {
+        0%   { transform: scale(${s}) translateY(0) rotate(-3deg); }
+        50%  { transform: scale(${s}) translateY(-5px) rotate(3deg); }
+        100% { transform: scale(${s}) translateY(0) rotate(-3deg); }
+      }`;
+  });
+
+  range.dispatchEvent(new Event('input'));
+}
 </script>
 </body>
 </html>
